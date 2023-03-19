@@ -3,7 +3,8 @@ version 41
 __lua__
 function _init()
 	state={}
-	init_demo()
+	state.grid=new_grid()
+	state.phase="start"
 end
 
 function init_demo()
@@ -49,10 +50,28 @@ function init_demo()
  state.phase="running"
 end
 
+function init_game()
+ init_demo()
+end
+
+function init_gameover()
+ state={}
+ state.grid=new_grid()
+ state.phase="gameover"
+end
 -->8
 function _update()
- if state.phase=="running" then
+ if state.phase=="start" then
+  if btnp(❎) then
+   init_game()
+  end
+ elseif state.phase=="running" then
   state=update_game(state)
+ elseif state.phase=="gameover" then
+  state.grid=new_grid()
+  if btnp(❎) then
+   init_game()
+  end
  end
 end
 
@@ -64,6 +83,10 @@ function update_ap(state)
   ap=move_right(ap,state.grid)
  elseif btnp(⬇️) then
   ap=move_down(ap,state.grid)
+ elseif btnp(❎) then
+  ap=rotate_clockwise(ap,state.grid)
+ elseif btnp(🅾️) then
+  ap=rotate_counterclockwise(ap,state.grid)
  else
   ap=drop(state)
  end
@@ -73,7 +96,13 @@ end
 function update_game(state)
  local _state=state
  if collision(state.active_piece,state.grid,⬇️) then
+  local bottom=get_bottom_block(state.active_piece)
+  local top=get_top_row(state.grid,state.active_piece.col)
+  if bottom.row<=top then
+   state.phase="gameover"
+  else
   _state=update_pieces(state)
+  end
  else
   _state.active_piece=update_ap(state)
  end
@@ -97,16 +126,46 @@ end
 -->8
 function _draw()
  cls(0)
- draw_ui(state)
- draw_grid(state.grid)
- draw_piece(state.active_piece)
- draw_piece(state.next_piece)
+ if state.phase=="start" then
+  draw_start()
+ else
+  draw_ui(state)
+  draw_grid(state.grid)
+  draw_piece(state.next_piece)
+  if state.phase=="running" then
+   draw_piece(state.active_piece)
+  elseif state.phase=="gameover" then
+   draw_gameover()
+  end
+ end
 end
 
-function draw_block(row,col,clr)
+function draw_block(row,col,sprite)
  xs=8*(col-1)
  ys=8*row
- spr(clr,xs,ys)
+ spr(sprite,xs,ys)
+end
+
+function draw_gameover()
+  for row=5,7 do
+   for col=2,9 do
+    draw_block(row,col,16)
+   end
+  end
+  for row=10,11 do
+   for col=3,8 do
+    draw_block(row,col,16)
+   end
+  end
+  print("press ❎ to\nplay again",2*8+2,10*8+2,6)
+  draw_block(5,2,17)
+  draw_block(5,3,18)
+  draw_block(5,4,19)
+  draw_block(5,5,20)
+  draw_block(7,6,21)
+  draw_block(7,7,22)
+  draw_block(7,8,23)
+  draw_block(7,9,24)
 end
 
 function draw_grid(grid)
@@ -116,6 +175,30 @@ function draw_grid(grid)
   end
  end
 end
+
+function draw_piece(p)
+ for b in all(p) do
+  draw_block(b.row,b.col,colors[b.clr])
+ end
+end
+
+function draw_start()
+  draw_block(4,2,33)
+  draw_block(4,3,34)
+  draw_block(4,4,35)
+  draw_block(4,5,36)
+  draw_block(6,6,37)
+  draw_block(6,7,38)
+  draw_block(6,8,39)
+  draw_block(6,9,40)
+  draw_block(8,10,41)
+  draw_block(8,11,42)
+  draw_block(8,12,43)
+  draw_block(8,13,44)
+  print("press ❎ to play",3*8+2,11*8+2,6)
+
+end
+
 
 function draw_ui(state)
  print("score",88,17)
@@ -130,13 +213,6 @@ function draw_ui(state)
  
 	print("next",88,89)
 end
-
-function draw_piece(p)
- for b in all(p) do
-  draw_block(b.row,b.col,colors[b.clr])
- end
-end
-
 
 -->8
 colors={
@@ -175,13 +251,27 @@ function drop(state)
  return ap
 end
 
-function move_down(piece,grid)
+function get_bottom_block(piece)
  local bottom=piece[1]
  for b in all(piece) do
-  if b.row>bottom.row then
+  if b.row<bottom.row then
    bottom=b
   end
  end
+ return bottom
+end
+
+function get_top_row(grid,col)
+ for r=1,15 do
+  if grid[r][col]~=colors["blank"] then
+   return r
+  end
+ end
+ return 16
+end
+
+function move_down(piece,grid)
+ local bottom=get_bottom_block(piece)
  if bottom.row<15
   and not collision(piece,grid,⬇️) then
   for b in all(piece) do
@@ -306,6 +396,24 @@ function random_shape(curr_shape)
  until new_shape~=curr_shape
  return new_shape
 end
+
+function rotate_clockwise(piece,grid)
+ if piece.shape=="i" then
+  piece[1].col=piece[1].col+2
+  piece[1].row=piece[1].row+1
+  piece[2].col=piece[2].col+1
+  piece[2].row=piece[2].row
+  piece[3].col=piece[3].col
+  piece[3].row=piece[3].row-1
+  piece[4].col=piece[4].col-1
+  piece[4].row=piece[4].row-2
+ end
+ return piece
+end
+
+function rotate_counterclockwise(piece,grid)
+ return piece
+end
 __gfx__
 000000000111111002222220033333300444444005555550099999900eeeeee00000000000000000000000000000000000000000000000000000000000000000
 00000000177cccc1277eeee2377bbbb34774444457766665977aaaa9e77ffffe0055550000000000000000000000000000000000000000000000000000000000
@@ -315,6 +423,22 @@ __gfx__
 007007001c1c1cc12e2222e23bb33bb344999944566556659a9999a9effffffe0500005000000000000000000000000000000000000000000000000000000000
 000000001cccccc12eeeeee23bbbbbb344444444566666659aaaaaa9effffffe0055550000000000000000000000000000000000000000000000000000000000
 000000000111111002222220033333300444444005555550099999900eeeeee00000000000000000000000000000000000000000000000000000000000000000
+55555555556666556666665566666655666666555566665566556655666666556666665500000000000000000000000000000000000000000000000000000000
+55555555556666556666665566666655666666555566665566556655666666556666665500000000000000000000000000000000000000000000000000000000
+55555555665555556655665566556655665555556655665566556655665555556655665500000000000000000000000000000000000000000000000000000000
+55555555665555556655665566556655666655556655665566556655666655556666555500000000000000000000000000000000000000000000000000000000
+55555555665566556666665566556655666655556655665566556655666655556666555500000000000000000000000000000000000000000000000000000000
+55555555665566556666665566556655665555556655665566556655665555556655665500000000000000000000000000000000000000000000000000000000
+55555555666666556655665566556655666666556666555555665555666666556655665500000000000000000000000000000000000000000000000000000000
+55555555666666556655665566556655666666556666555555665555666666556655665500000000000000000000000000000000000000000000000000000000
+00000000666666006666000066666600666666000066660066666600666666006600660066666600666666006666660000666600000000000000000000000000
+00000000666666006666000066666600666666000066660066666600666666006600660066666600666666006666660000666600000000000000000000000000
+00000000660066006600660000660000006600006600000066006600660066006600660000660000660066000066000066000000000000000000000000000000
+00000000660066006600660000660000006600006600000066660000660066006600660000660000666600000066000066666600000000000000000000000000
+00000000666666006600660000660000006600006600660066660000666666006600660000660000666600000066000066666600000000000000000000000000
+00000000666666006600660000660000006600006600660066006600666666006600660000660000660066000066000000006600000000000000000000000000
+00000000660066006600660000660000666666006666660066006600660066000066000000660000660066006666660066660000000000000000000000000000
+00000000660066006600660000660000666666006666660066006600660066000066000000660000660066006666660066660000000000000000000000000000
 __label__
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
