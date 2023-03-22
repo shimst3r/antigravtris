@@ -10,13 +10,12 @@ end
 function init_demo()
  state.score=100
  state.level=0
- state.lines=0
  state.time=0
 
- active_piece=new_piece(3,10,"i")
+ active_piece=new_piece(1,5,"z")
  state.active_piece=active_piece
  
- shape=random_shape("i")
+ shape=random_shape("z")
  next_piece=new_piece(12,12,shape)
  state.next_piece=next_piece
  
@@ -51,7 +50,23 @@ function init_demo()
 end
 
 function init_game()
- init_demo()
+ state.score=0
+ state.level=0
+ state.time=0
+
+ shape=random_shape("")
+ active_piece=new_piece(1,5,shape)
+ state.active_piece=active_piece
+ 
+ shape=random_shape(state.active_piece.shape)
+ next_piece=new_piece(12,12,shape)
+ state.next_piece=next_piece
+ 
+ grid=new_grid()
+ state.grid=grid
+ 
+ state.phase="running"
+
 end
 
 function init_gameover()
@@ -84,7 +99,10 @@ function update_ap(state)
  elseif btnp(⬇️) then
   ap=move_down(ap,state.grid)
  elseif btnp(❎) then
-  ap=rotate_clockwise(ap,state.grid)
+  candidate=rotate_clockwise(ap,state.grid)
+  if can_rotate(candidate,state.grid) then
+   ap=candidate
+  end
  elseif btnp(🅾️) then
   ap=rotate_counterclockwise(ap,state.grid)
  else
@@ -223,20 +241,71 @@ colors={
  grey=5,
  yellow=6,
  pink=7,
- blank=8}
+ blank=8,
+ down=9,
+ up=10,
+}
+
+pieces={
+ i={
+  [1]=function (row,col) return {shape="i",position=1,[1]={row=row,col=col-1,clr="brown"},[2]={row=row,col=col,clr="brown"},[3]={row=row,col=col+1,clr="brown"},[4]={row=row,col=col+2,clr="brown"}} end,
+  [2]=function (row,col) return {shape="i",position=2,[1]={row=row-1,col=col,clr="brown"},[2]={row=row,col=col,clr="brown"},[3]={row=row+1,col=col,clr="brown"},[4]={row=row+2,col=col,clr="brown"}} end,
+ },
+ o={
+  [1]=function (row,col) return {shape="o",position=1,[1]={row=row,col=col-1,clr="purple"},[2]={row=row,col=col,clr="purple"},[3]={row=row+1,col=col-1,clr="purple"},[4]={row=row+1,col=col,clr="purple"}} end,
+ },
+ t={
+  [1]=function (row,col) return {shape="t",position=1,[1]={row=row,col=col-1,clr="green"},[2]={row=row,col=col,clr="green"},[3]={row=row,col=col+1,clr="green"},[4]={row=row+1,col=col,clr="green"}} end,
+  [2]=function (row,col) return {shape="t",position=2,[1]={row=row-1,col=col,clr="green"},[2]={row=row,col=col,clr="green"},[3]={row=row+1,col=col,clr="green"},[4]={row=row,col=col-1,clr="green"}} end,
+  [3]=function (row,col) return {shape="t",position=3,[1]={row=row,col=col+1,clr="green"},[2]={row=row,col=col,clr="green"},[3]={row=row,col=col-1,clr="green"},[4]={row=row-1,col=col,clr="green"}} end,
+  [4]=function (row,col) return {shape="t",position=4,[1]={row=row+1,col=col,clr="green"},[2]={row=row,col=col,clr="green"},[3]={row=row-1,col=col,clr="green"},[4]={row=row,col=col+1,clr="green"}} end,
+ },
+ j={
+  [1]=function (row,col) return {shape="j",position=1,[1]={row=row,col=col-1,clr="pink"},[2]={row=row,col=col,clr="pink"},[3]={row=row,col=col+1,clr="pink"},[4]={row=row+1,col=col+1,clr="pink"}} end,  
+  [2]=function (row,col) return {shape="j",position=2,[1]={row=row-1,col=col,clr="pink"},[2]={row=row,col=col,clr="pink"},[3]={row=row+1,col=col,clr="pink"},[4]={row=row+1,col=col-1,clr="pink"}} end,  
+  [3]=function (row,col) return {shape="j",position=3,[1]={row=row,col=col+1,clr="pink"},[2]={row=row,col=col,clr="pink"},[3]={row=row,col=col-1,clr="pink"},[4]={row=row-1,col=col-1,clr="pink"}} end,  
+  [4]=function (row,col) return {shape="j",position=4,[1]={row=row+1,col=col,clr="pink"},[2]={row=row,col=col,clr="pink"},[3]={row=row-1,col=col,clr="pink"},[4]={row=row-1,col=col+1,clr="pink"}} end,  
+ },
+ l={
+  [1]=function (row,col) return {shape="l",position=1,[1]={row=row,col=col+1,clr="blue"},[2]={row=row,col=col,clr="blue"},[3]={row=row,col=col-1,clr="blue"},[4]={row=row+1,col=col-1,clr="blue"}} end,  
+  [2]=function (row,col) return {shape="l",position=2,[1]={row=row+1,col=col,clr="blue"},[2]={row=row,col=col,clr="blue"},[3]={row=row-1,col=col,clr="blue"},[4]={row=row-1,col=col-1,clr="blue"}} end,  
+  [3]=function (row,col) return {shape="l",position=3,[1]={row=row,col=col-1,clr="blue"},[2]={row=row,col=col,clr="blue"},[3]={row=row,col=col+1,clr="blue"},[4]={row=row-1,col=col+1,clr="blue"}} end,  
+  [4]=function (row,col) return {shape="l",position=4,[1]={row=row-1,col=col,clr="blue"},[2]={row=row,col=col,clr="blue"},[3]={row=row+1,col=col,clr="blue"},[4]={row=row+1,col=col+1,clr="blue"}} end,  
+ },
+ s={
+  [1]=function (row,col) return {shape="s",position=1,[1]={row=row,col=col+1,clr="yellow"},[2]={row=row,col=col,clr="yellow"},[3]={row=row+1,col=col,clr="yellow"},[4]={row=row+1,col=col-1,clr="yellow"}} end,  
+  [2]=function (row,col) return {shape="s",position=2,[1]={row=row+1,col=col,clr="yellow"},[2]={row=row,col=col,clr="yellow"},[3]={row=row,col=col-1,clr="yellow"},[4]={row=row-1,col=col-1,clr="yellow"}} end,  
+ },
+ z={
+  [1]=function (row,col) return {shape="z",position=1,[1]={row=row,col=col-1,clr="grey"},[2]={row=row,col=col,clr="grey"},[3]={row=row+1,col=col,clr="grey"},[4]={row=row+1,col=col+1,clr="grey"}} end,  
+  [2]=function (row,col) return {shape="z",position=2,[1]={row=row-1,col=col,clr="grey"},[2]={row=row,col=col,clr="grey"},[3]={row=row,col=col-1,clr="grey"},[4]={row=row+1,col=col-1,clr="grey"}} end,  
+ },
+}
+
+function can_rotate(piece,grid)
+ for dir in all({⬆️,⬅️,➡️,⬇️}) do
+  if collision(piece,grid,dir) then
+   return false
+  end
+ end
+ return true
+end
 
 function collision(piece,grid,dir)
  for b in all(piece) do
   if dir==⬅️
+   and b.col>0
    and grid[b.row][b.col-1]~=colors["blank"] then
     return true
   elseif dir==➡️
-   and grid[b.row][b.col+1]~=colors["blank"] then
+   and b.col<11
+   and  grid[b.row][b.col+1]~=colors["blank"] then
     return true
   elseif dir==⬇️
-   and (b.row==15
- 				  	or grid[b.row+1][b.col]~=colors["blank"]) then
+   and b.row==15 or grid[b.row+1][b.col]~=colors["blank"] then
     return true
+  elseif dir==⬆️ and b.row<1 then
+   return true
   end
  end
  return false
@@ -272,8 +341,7 @@ end
 
 function move_down(piece,grid)
  local bottom=get_bottom_block(piece)
- if bottom.row<15
-  and not collision(piece,grid,⬇️) then
+ if not collision(piece,grid,⬇️) then
   for b in all(piece) do
    b.row+=1
   end
@@ -282,14 +350,7 @@ function move_down(piece,grid)
 end
 
 function move_left(piece,grid)
- local leftmost=piece[1]
- for b in all(piece) do
-  if b.col<leftmost.col then
-   leftmost=b
-  end
- end
- if leftmost.col>1
-  and not collision(piece,grid,⬅️) then
+ if not collision(piece,grid,⬅️) then
 	  for b in all(piece) do
  	  b.col-=1
  	end
@@ -298,14 +359,7 @@ function move_left(piece,grid)
 end
 
 function move_right(piece,grid)
- local rightmost=piece[1]
- for b in all(piece) do
-  if b.col>rightmost.col then
-   rightmost=b
-  end
- end
- if rightmost.col<10
-  and not collision(piece,grid,➡️) then
+ if not collision(piece,grid,➡️) then
   for b in all(piece) do
    b.col+=1
   end
@@ -313,10 +367,13 @@ function move_right(piece,grid)
  return piece
 end
 
-
 function new_grid()
  grid={}
- for i=1,15 do
+ grid[1]={}
+ for j=1,10 do
+  grid[1][j]=colors["down"]
+ end
+ for i=2,15 do
   grid[i]={}
   for j=1,10 do
    grid[i][j]=colors["blank"]
@@ -326,43 +383,7 @@ function new_grid()
 end
 
 function new_piece(row,col,shape)
- piece={shape=shape}
- if shape=="i" then
-  piece[1]={row=row,col=col,clr="brown"}
-  piece[2]={row=row+1,col=col,clr="brown"}
-  piece[3]={row=row+2,col=col,clr="brown"}
-  piece[4]={row=row+3,col=col,clr="brown"}
- elseif shape=="o" then
-  piece[1]={row=row,col=col,clr="purple"}
-  piece[2]={row=row,col=col+1,clr="purple"}
-  piece[3]={row=row+1,col=col,clr="purple"}
-  piece[4]={row=row+1,col=col+1,clr="purple"}
- elseif shape=="t" then
-  piece[1]={row=row,col=col,clr="green"}
-  piece[2]={row=row,col=col+1,clr="green"}
-  piece[3]={row=row,col=col+2,clr="green"}
-  piece[4]={row=row+1,col=col+1,clr="green"}
- elseif shape=="j" then
-  piece[1]={row=row,col=col+1,clr="pink"}
-  piece[2]={row=row+1,col=col+1,clr="pink"}
-  piece[3]={row=row+2,col=col+1,clr="pink"}
-  piece[4]={row=row+2,col=col,clr="pink"}
- elseif shape=="l" then
-  piece[1]={row=row,col=col,clr="blue"}
-  piece[2]={row=row+1,col=col,clr="blue"}
-  piece[3]={row=row+2,col=col,clr="blue"}
-  piece[4]={row=row+2,col=col+1,clr="blue"}
- elseif shape=="s" then
-  piece[1]={row=row,col=col+2,clr="yellow"}
-  piece[2]={row=row,col=col+1,clr="yellow"}
-  piece[3]={row=row+1,col=col+1,clr="yellow"}
-  piece[4]={row=row+1,col=col,clr="yellow"}
- elseif shape=="z" then
-  piece[1]={row=row,col=col,clr="grey"}
-  piece[2]={row=row,col=col+1,clr="grey"}
-  piece[3]={row=row+1,col=col+1,clr="grey"}
-  piece[4]={row=row+1,col=col+2,clr="grey"}
- end
+ piece=pieces[shape][1](row,col)
  return piece
 end
 
@@ -375,7 +396,6 @@ function persist(piece,grid)
 end
 
 function random_shape(curr_shape)
- new_shape=curr_shape
  repeat
   --[[
   note: generating new pieces
@@ -398,30 +418,60 @@ function random_shape(curr_shape)
 end
 
 function rotate_clockwise(piece,grid)
- if piece.shape=="i" then
-  piece[1].col=piece[1].col+2
-  piece[1].row=piece[1].row+1
-  piece[2].col=piece[2].col+1
-  piece[2].row=piece[2].row
-  piece[3].col=piece[3].col
-  piece[3].row=piece[3].row-1
-  piece[4].col=piece[4].col-1
-  piece[4].row=piece[4].row-2
+ --[[
+ note: offsets are based on the
+ invariant block of each piece,
+ which differs from shape to
+ shape, but pieces have been set
+ up so that piece[2] is always
+ the invariant one.
+ --]]
+ local shp=piece.shape
+ local pos=piece.position
+ local row=piece[2].row
+ local col=piece[2].col
+
+ if pos==#pieces[shp] then
+  pos=1
+ else
+  pos+=1
  end
+ piece=pieces[shp][pos](row,col)
+ 
  return piece
 end
 
 function rotate_counterclockwise(piece,grid)
+ --[[
+ note: offsets are based on the
+ invariant block of each piece,
+ which differs from shape to
+ shape, but pieces have been set
+ up so that piece[2] is always
+ the invariant one.
+ --]]
+ local shp=piece.shape
+ local pos=piece.position
+ local row=piece[2].row
+ local col=piece[2].col
+
+ if pos==1 then
+  pos=#pieces[shp]
+ else
+  pos-=1
+ end
+ piece=pieces[shp][pos](row,col)
+ 
  return piece
 end
 __gfx__
 000000000111111002222220033333300444444005555550099999900eeeeee00000000000000000000000000000000000000000000000000000000000000000
-00000000177cccc1277eeee2377bbbb34774444457766665977aaaa9e77ffffe0055550000000000000000000000000000000000000000000000000000000000
-007007001771c1c1277222e237733bb34779994457755665977999a9e77ffffe0500005000000000000000000000000000000000000000000000000000000000
-000770001c1c1cc12e2ee2e23b3bb3b344999944565555659a9999a9effeeffe0500005000000000000000000000000000000000000000000000000000000000
-000770001cc1c1c12e2ee2e23b3bb3b344999944565555659a9999a9effeeffe0500005000000000000000000000000000000000000000000000000000000000
-007007001c1c1cc12e2222e23bb33bb344999944566556659a9999a9effffffe0500005000000000000000000000000000000000000000000000000000000000
-000000001cccccc12eeeeee23bbbbbb344444444566666659aaaaaa9effffffe0055550000000000000000000000000000000000000000000000000000000000
+00000000177cccc1277eeee2377bbbb34774444457766665977aaaa9e77ffffe0055550000055000000550000000000000000000000000000000000000000000
+007007001771c1c1277222e237733bb34779994457755665977999a9e77ffffe0500005000055000005555000000000000000000000000000000000000000000
+000770001c1c1cc12e2ee2e23b3bb3b344999944565555659a9999a9effeeffe0500005000055000050550500000000000000000000000000000000000000000
+000770001cc1c1c12e2ee2e23b3bb3b344999944565555659a9999a9effeeffe0500005005055050000550000000000000000000000000000000000000000000
+007007001c1c1cc12e2222e23bb33bb344999944566556659a9999a9effffffe0500005000555500000550000000000000000000000000000000000000000000
+000000001cccccc12eeeeee23bbbbbb344444444566666659aaaaaa9effffffe0055550000055000000550000000000000000000000000000000000000000000
 000000000111111002222220033333300444444005555550099999900eeeeee00000000000000000000000000000000000000000000000000000000000000000
 55555555556666556666665566666655666666555566665566556655666666556666665500000000000000000000000000000000000000000000000000000000
 55555555556666556666665566666655666666555566665566556655666666556666665500000000000000000000000000000000000000000000000000000000
