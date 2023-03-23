@@ -7,9 +7,36 @@ function _init()
 	state.phase="start"
 end
 
-function init_demo()
- state.lines=1
+function init_game()
  state.level=0
+ state.score=0
+ state.stopwatch=0
+ state.time=0
+
+ shape=random_shape("")
+ active_piece=new_piece(1,5,shape)
+ state.active_piece=active_piece
+ 
+ shape=random_shape(state.active_piece.shape)
+ next_piece=new_piece(13,13,shape)
+ state.next_piece=next_piece
+ 
+ grid=new_grid()
+ state.grid=grid
+ 
+ state.phase="running"
+end
+
+function init_gameover()
+ state={}
+ state.grid=new_grid()
+ state.phase="gameover"
+end
+
+function init_demo()
+ state.level=0
+ state.score=0
+ state.stopwatch=0
  state.time=0
 
  active_piece=new_piece(1,5,"z")
@@ -47,32 +74,6 @@ function init_demo()
  state.grid=grid
  
  state.phase="running"
-end
-
-function init_game()
- state.lines=0
- state.level=0
- state.time=0
-
- shape=random_shape("")
- active_piece=new_piece(1,5,shape)
- state.active_piece=active_piece
- 
- shape=random_shape(state.active_piece.shape)
- next_piece=new_piece(13,13,shape)
- state.next_piece=next_piece
- 
- grid=new_grid()
- state.grid=grid
- 
- state.phase="running"
-
-end
-
-function init_gameover()
- state={}
- state.grid=new_grid()
- state.phase="gameover"
 end
 -->8
 function _update()
@@ -135,6 +136,7 @@ function update_game(state)
  else
   _state.active_piece=update_ap(state)
  end
+ _state.stopwatch+=1
  _state.time+=1
  return _state
 end
@@ -142,16 +144,24 @@ end
 function update_pieces(state)
  local _state=state
  _state.grid=persist(state.active_piece,state.grid)
- _state.grid,_state.lines=delete_lines(state)
  
- if _state.lines>10*_state.level then
-  _state.level=min(9,_state.level+1)
+ local deleted_lines=0
+ _state.grid,deleted_lines=delete_lines(state)
+	local base=_state.level+max(0,flr(_state.stopwatch/30))
+	for i=1,deleted_lines do
+	 base*=_state.level+2
+	end
+	_state.score=min(_state.score+base,32767)
+	if _state.score>(_state.level+1)*100 then
+ 	_state.level=max(9,_state.level+1)
  end
+	
 	local active_piece=new_piece(1,5,state.next_piece.shape)
  local next_shape=random_shape(state.next_piece.shape)
  local next_piece=new_piece(13,13,next_shape)
  _state.active_piece=active_piece
  _state.next_piece=next_piece
+ _state.stopwatch=0
  
  return _state
 end
@@ -236,8 +246,8 @@ function draw_ui(state)
  print("level",88,17)
  print(state.level,88,25)
 
- print("lines",88,41)
- print(state.lines,88,49)
+ print("score",88,41)
+ print(state.score,88,49)
  
  local seconds=flr(state.time/30)
  print("time",88,65)
@@ -348,13 +358,12 @@ function delete_lines(state)
   end 
  end
 
- local _lines=state.lines+#deletable_rows
- return _grid,_lines
+ return _grid,#deletable_rows
 end
 
 function drop(state)
  local ap=state.active_piece
- if state.time%(30-state.level)==0
+ if state.time%(30-2*state.level)==0
   and not collision(ap,state.grid,⬇️) then
   ap=move_down(ap,state.grid)
  end
